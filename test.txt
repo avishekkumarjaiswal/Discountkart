@@ -1,0 +1,34 @@
+const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || !shop) return;
+  
+  if (file.size > 800 * 1024) {
+    setMessage('Error: Image size must be less than 800KB for direct upload.');
+    return;
+  }
+  
+  try {
+    setUploadingImage(true);
+    setMessage('');
+    
+    // Read file as Base64 Data URL
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      const url = reader.result as string;
+      await updateDoc(doc(db, 'shops', shop.id), { coverImageUrl: url });
+      setShop((prev: any) => ({ ...prev, coverImageUrl: url }));
+      setMessage('Cover image uploaded successfully!');
+      setUploadingImage(false);
+    };
+    reader.onerror = (error) => {
+      console.error(error);
+      setMessage('Error reading file.');
+      setUploadingImage(false);
+    };
+  } catch (err: any) {
+    console.error(err);
+    setMessage('Upload failed.');
+    setUploadingImage(false);
+  }
+};

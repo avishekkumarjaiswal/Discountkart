@@ -1,0 +1,9 @@
+{
+  "short_name": "DiscountKart",
+  "name": "DiscountKart - Local Discounts & Offers",
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "display": "standalone",
+  "orientation": "portrait"
+}

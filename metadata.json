@@ -1,0 +1,6 @@
+{
+  "name": "DiscountKart",
+  "description": "Hyperlocal Discount Marketplace MVP",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

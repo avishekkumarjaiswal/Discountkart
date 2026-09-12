@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+patch_*.cjs
+fix_*.cjs
+fix_*.mjs
+test-*.html
+*.js.map
+

@@ -1,0 +1,133 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isShopOwner(shopId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/shops/$(shopId)) &&
+        get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      // Users can read their own profile, admins can read all
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      
+      // Users can create/update their profile but cannot change their role to admin
+      allow create: if isAuthenticated() && request.auth.uid == userId && (request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && request.auth.uid == userId && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || request.resource.data.role == 'shop' || request.resource.data.role == 'user' || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /shops/{shopId} {
+      // Anyone can read approved shops
+      allow read: if resource == null || resource.data.status == 'approved' || (isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+      // Shop owners can create shops (must be pending) and update their own shop. Admins can do everything.
+      // Prevent shop owners from self-approving or self-subscribing.
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update: if isAdmin() || (isShopOwner(shopId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'subscriptionPlan', 'subscriptionStatus', 'trialStartDate', 'trialEndDate', 'subscriptionStartDate', 'subscriptionEndDate', 'isPromoted'])) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visitCount'])) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'ratingCount', 'visitCount']));
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /locations/{locationId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isAuthenticated() && isShopOwner(request.resource.data.shopId));
+      allow update: if isAdmin() || (isAuthenticated() && isShopOwner(resource.data.shopId));
+      allow delete: if isAdmin() || (isAuthenticated() && isShopOwner(resource.data.shopId));
+    }
+
+    match /discounts/{discountId} {
+      // Anyone can read active discounts
+      allow read: if true;
+      allow create: if isAdmin() || (isAuthenticated() && isShopOwner(request.resource.data.shopId));
+      allow update: if isAdmin() || (isAuthenticated() && resource != null && isShopOwner(resource.data.shopId));
+      allow delete: if isAdmin() || (isAuthenticated() && resource != null && isShopOwner(resource.data.shopId));
+    }
+
+    match /redemptions/{redemptionId} {
+      // Customer can read their own, Shop owner can read their shop's, Admin can read all
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || (resource.data.shopOwnerId != null && resource.data.shopOwnerId == request.auth.uid) || isShopOwner(resource.data.shopId) || isAdmin());
+      
+      // Allow customers to generate OTPs directly
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.status == 'active';
+      allow update: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.status == 'active' &&
+                    (resource.data.status == 'expired' || (resource.data.status == 'active' && resource.data.expiresAt < request.time)) &&
+                    request.resource.data.shopId == resource.data.shopId &&
+                    (request.resource.data.shopOwnerId == resource.data.shopOwnerId || !('shopOwnerId' in resource.data)) &&
+                    request.resource.data.discountId == resource.data.discountId;
+                    
+      // Allow shop owners to verify/redeem/expire OTPs
+      allow update: if isAdmin() || (isAuthenticated() && 
+                    isShopOwner(resource.data.shopId) &&
+                    (request.resource.data.status == 'redeemed' || request.resource.data.status == 'expired'));
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && (isShopOwner(resource.data.shopId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /appSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /paymentRequests/{requestId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+                    request.resource.data.ownerId == request.auth.uid && 
+                    request.resource.data.status == 'pending';
+      allow update: if isAdmin() || (isAuthenticated() && 
+                    resource.data.ownerId == request.auth.uid && 
+                    !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedAt', 'reviewedBy', 'rejectionReason']));
+    }
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+    match /analyticsEvents/{eventId} {
+      allow read: if isAdmin() || (isAuthenticated() && isShopOwner(resource.data.shopId));
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+    match /promoCodes/{code} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    match /advertisements/{adId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isAuthenticated() && isShopOwner(request.resource.data.shopId) && request.resource.data.status == 'pending');
+      allow update: if isAdmin() || (isAuthenticated() && isShopOwner(resource.data.shopId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']));
+      allow delete: if isAdmin() || (isAuthenticated() && isShopOwner(resource.data.shopId));
+    }
+
+    match /shop_ratings/{ratingId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+  }
+}
