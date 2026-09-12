@@ -222,14 +222,13 @@ export default function ShopDetails() {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 md:pb-12">
-      <div className={`relative w-full ${shop.coverImageUrl ? 'h-64 bg-gray-800' : 'h-48 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600'}`}>
+      <div className={`relative w-full ${shop.coverImageUrl ? 'h-24 sm:h-64 bg-gray-800' : 'h-20 sm:h-48 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600'}`}>
         {shop.coverImageUrl && (
           <img src={shop.coverImageUrl} alt={shop.shopName} className="w-full h-full object-cover opacity-60" />
         )}
-        
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 -mt-16 relative z-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 -mt-6 sm:-mt-16 relative z-10">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1 min-w-0">

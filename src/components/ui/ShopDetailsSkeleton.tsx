@@ -4,9 +4,9 @@ import { Skeleton, DiscountCardSkeleton } from './Skeleton';
 export function ShopDetailsSkeleton() {
   return (
     <div className="bg-gray-50 min-h-screen pb-12">
-      <Skeleton className="w-full h-48 md:h-64 rounded-none" />
+      <Skeleton className="w-full h-24 md:h-64 rounded-none" />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-16 relative z-10">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100">
           <div className="flex justify-between items-start">
             <div className="flex-1">

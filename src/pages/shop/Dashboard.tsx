@@ -9,6 +9,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 
 import { Input } from '../../components/ui/Input';
 import { Crown, TrendingUp, Users, Tag, AlertCircle } from 'lucide-react';
+import { useCategories } from '../../hooks/useCategories';
 
 interface LocationItem {
   id: string;
@@ -19,6 +20,7 @@ interface LocationItem {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { categories: CATEGORIES } = useCategories();
   const [shop, setShop] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -129,8 +131,15 @@ export default function Dashboard() {
       const shopData = {
         ownerId: user?.uid,
         shopName: formData.get('shopName'),
-        area: formData.get('area'),
+        category: formData.get('category') || 'Others',
+        phone: formData.get('phone') || '',
+        email: user?.email || '',
+        address: formData.get('address') || '',
         city: formData.get('city'),
+        area: formData.get('area'),
+        openingTime: formData.get('openingTime') || '09:00',
+        closingTime: formData.get('closingTime') || '21:00',
+        description: formData.get('description') || '',
         status: 'pending',
         subscriptionStatus: 'free',
         subscriptionPlan: 'free',
@@ -182,44 +191,92 @@ export default function Dashboard() {
   if (!shop) {
     return (
       <div className="max-w-5xl mx-auto w-full space-y-6">
-        <div className="max-w-2xl bg-white p-8 rounded-xl border border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Create Your Shop</h1>
-        <form onSubmit={handleCreateShop} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Shop Name</label>
-            <Input name="shopName" required placeholder="e.g. ABC Footwear" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-            <select 
-              name="city" 
-              required 
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-            >
-              <option value="">Select City</option>
-              {Array.from(new Set(locations.map(l => l.city))).sort().map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Area</label>
-            <select 
-              name="area" 
-              required 
-              disabled={!selectedCity}
-              className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50"
-            >
-              <option value="">Select Area</option>
-              {locations.filter(l => l.city === selectedCity).sort((a,b) => a.area.localeCompare(b.area)).map(loc => (
-                <option key={loc.id} value={loc.area}>{loc.area}</option>
-              ))}
-            </select>
-          </div>
-          <Button type="submit" className="w-full">Create Shop</Button>
-        </form>
+        <div className="max-w-2xl bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Your Shop</h1>
+          <p className="text-xs text-gray-500 mb-6">Enter complete details to showcase your shop to local customers.</p>
+          
+          <form onSubmit={handleCreateShop} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Shop Name <span className="text-red-500">*</span></label>
+              <Input name="shopName" required placeholder="e.g. ABC Footwear" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
+                <select name="category" required defaultValue="Others" className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                <Input name="phone" type="tel" required placeholder="10-digit phone number" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Full Address <span className="text-red-500">*</span></label>
+              <Input name="address" required placeholder="Shop No., Street Name, Landmark" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                <select 
+                  name="city" 
+                  required 
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="">Select City</option>
+                  {Array.from(new Set(locations.map(l => l.city))).sort().map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Area / Locality <span className="text-red-500">*</span></label>
+                <select 
+                  name="area" 
+                  required 
+                  disabled={!selectedCity}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50"
+                >
+                  <option value="">Select Area</option>
+                  {locations.filter(l => l.city === selectedCity).sort((a,b) => a.area.localeCompare(b.area)).map(loc => (
+                    <option key={loc.id} value={loc.area}>{loc.area}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50/80 p-4 rounded-xl border border-gray-100">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Opening Time</label>
+                <Input name="openingTime" type="time" defaultValue="09:00" required />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Closing Time</label>
+                <Input name="closingTime" type="time" defaultValue="21:00" required />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Description (Optional)</label>
+              <textarea 
+                name="description" 
+                rows={3} 
+                className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" 
+                placeholder="Short description of your products or services..."
+              />
+            </div>
+
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 font-bold py-3">Create Shop</Button>
+          </form>
         </div>
       </div>
     );

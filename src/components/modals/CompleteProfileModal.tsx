@@ -55,9 +55,9 @@ export function CompleteProfileModal({ isOpen, onClose, forceComplete = false }:
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in duration-200 my-auto max-h-[calc(100vh-2rem)]">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
               <Phone size={18} />
@@ -74,7 +74,7 @@ export function CompleteProfileModal({ isOpen, onClose, forceComplete = false }:
           )}
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {forceComplete && (
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
               <ShieldCheck size={20} className="text-blue-600 shrink-0 mt-0.5" />
@@ -106,13 +106,13 @@ export function CompleteProfileModal({ isOpen, onClose, forceComplete = false }:
           </form>
         </div>
         
-        <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+        <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50 shrink-0">
           {onClose && (
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl text-xs">
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl text-xs flex-1 sm:flex-none">
               Remind Me Later
             </Button>
           )}
-          <Button type="submit" form="complete-profile-form" disabled={loading} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl h-11 px-6 shadow-sm">
+          <Button type="submit" form="complete-profile-form" disabled={loading} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl h-11 px-6 shadow-sm">
             {loading ? 'Saving...' : 'Save & Continue'}
           </Button>
         </div>
