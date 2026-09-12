@@ -1,6 +1,6 @@
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, setLogLevel } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -15,6 +15,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Failed to set auth local persistence:', err);
+});
 export const googleProvider = new GoogleAuthProvider();
 
 export const db = initializeFirestore(
