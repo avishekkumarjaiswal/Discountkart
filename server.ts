@@ -35,8 +35,42 @@ const db = getFirestore(adminApp, 'ai-studio-a21c7121-7ddd-47be-83e6-84614dad9b6
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
+// Security Headers Middleware (OWASP Standard)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
+// Simple In-Memory Rate Limiter (Prevents DDoS and Brute Force)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+app.use((req, res, next) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxRequests = 120; // 120 requests per min per IP
+
+  const record = rateLimitMap.get(ip) || { count: 0, resetTime: now + windowMs };
+  if (now > record.resetTime) {
+    record.count = 1;
+    record.resetTime = now + windowMs;
+  } else {
+    record.count++;
+  }
+  rateLimitMap.set(ip, record);
+
+  if (record.count > maxRequests) {
+    res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    return;
+  }
+  next();
+});
+
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Middleware to verify Firebase Auth token
 const authenticate = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
