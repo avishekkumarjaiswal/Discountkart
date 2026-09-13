@@ -4,8 +4,8 @@ import { db } from '../../lib/firebase';
 import { Button } from '../ui/Button';
 import { useCategories } from '../../hooks/useCategories';
 import { Input } from '../ui/Input';
-import { X, ImagePlus, Loader2, Store, Tag, Package, Plus, Trash2, Edit3, Check } from 'lucide-react';
-import { getOfferBadgeText } from '../../utils/discountEngine';
+import { X, ImagePlus, Loader2, Store, Tag, Package, Plus, Trash2, Edit3, Check, Percent, Gift, Layers, Zap } from 'lucide-react';
+import { getOfferBadgeText, OfferType, QuantityTier, BundleItem } from '../../utils/discountEngine';
 
 interface EditShopModalProps {
   shop: any;
@@ -26,6 +26,35 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
   const [editingDiscount, setEditingDiscount] = useState<any | null>(null);
   const [isAddingDiscount, setIsAddingDiscount] = useState(false);
 
+  // 5 Main Offer Types State for Admin Form
+  const [offerType, setOfferType] = useState<OfferType>('percentage_flat');
+  const [discountType, setDiscountType] = useState<'percentage' | 'flat'>('percentage');
+
+  // BXGY fields
+  const [bxgyBuyQty, setBxgyBuyQty] = useState<number>(2);
+  const [bxgyGetQty, setBxgyGetQty] = useState<number>(1);
+  const [bxgyRewardType, setBxgyRewardType] = useState<'free' | 'percentage' | 'flat' | 'fixed_price'>('free');
+  const [bxgyRewardValue, setBxgyRewardValue] = useState<number>(0);
+  const [bxgyMatchRule, setBxgyMatchRule] = useState<'same_product' | 'mix_match'>('same_product');
+
+  // Quantity Pricing State
+  const [quantityPricingMethod, setQuantityPricingMethod] = useState<'fixed_total' | 'percentage_discount' | 'flat_discount'>('fixed_total');
+  const [quantityTiers, setQuantityTiers] = useState<QuantityTier[]>([
+    { quantity: 1, totalPrice: 800, label: '1 Pair' },
+    { quantity: 2, totalPrice: 1500, label: '2 Pairs' }
+  ]);
+
+  // Bundle Items State
+  const [bundleItems, setBundleItems] = useState<BundleItem[]>([
+    { name: 'Item 1', quantity: 1, originalPrice: 500 }
+  ]);
+  const [bundlePrice, setBundlePrice] = useState<number>(999);
+  const [bundleOriginalPrice, setBundleOriginalPrice] = useState<number>(1500);
+
+  // Flash Sale fields
+  const [flashSaleOfferType, setFlashSaleOfferType] = useState<'percentage' | 'flat' | 'fixed_price'>('percentage');
+  const [flashSaleValue, setFlashSaleValue] = useState<number>(30);
+
   // Products state
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -39,6 +68,23 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
       fetchProducts();
     }
   }, [activeTab, shop.id]);
+
+  useEffect(() => {
+    if (editingDiscount) {
+      if (editingDiscount.offerType) setOfferType(editingDiscount.offerType);
+      if (editingDiscount.discountType) setDiscountType(editingDiscount.discountType);
+      if (editingDiscount.bxgyBuyQty) setBxgyBuyQty(editingDiscount.bxgyBuyQty);
+      if (editingDiscount.bxgyGetQty) setBxgyGetQty(editingDiscount.bxgyGetQty);
+      if (editingDiscount.bxgyRewardType) setBxgyRewardType(editingDiscount.bxgyRewardType);
+      if (editingDiscount.bxgyRewardValue) setBxgyRewardValue(editingDiscount.bxgyRewardValue);
+      if (editingDiscount.quantityTiers) setQuantityTiers(editingDiscount.quantityTiers);
+      if (editingDiscount.bundleItems) setBundleItems(editingDiscount.bundleItems);
+      if (editingDiscount.bundlePrice) setBundlePrice(editingDiscount.bundlePrice);
+      if (editingDiscount.bundleOriginalPrice) setBundleOriginalPrice(editingDiscount.bundleOriginalPrice);
+      if (editingDiscount.flashSaleOfferType) setFlashSaleOfferType(editingDiscount.flashSaleOfferType);
+      if (editingDiscount.flashSaleValue) setFlashSaleValue(editingDiscount.flashSaleValue);
+    }
+  }, [editingDiscount]);
 
   const fetchDiscounts = async () => {
     setLoadingDiscounts(true);
@@ -143,6 +189,25 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
     }
   };
 
+  const handleAddTier = () => {
+    const nextQty = quantityTiers.length > 0 ? quantityTiers[quantityTiers.length - 1].quantity + 1 : 1;
+    setQuantityTiers([...quantityTiers, { quantity: nextQty, totalPrice: nextQty * 500, label: `${nextQty} Items` }]);
+  };
+
+  const handleRemoveTier = (idx: number) => {
+    if (quantityTiers.length <= 1) return;
+    setQuantityTiers(quantityTiers.filter((_, i) => i !== idx));
+  };
+
+  const handleAddBundleItem = () => {
+    setBundleItems([...bundleItems, { name: `Item ${bundleItems.length + 1}`, quantity: 1, originalPrice: 500 }]);
+  };
+
+  const handleRemoveBundleItem = (idx: number) => {
+    if (bundleItems.length <= 1) return;
+    setBundleItems(bundleItems.filter((_, i) => i !== idx));
+  };
+
   // Discount Actions
   const handleSaveDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -163,16 +228,46 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
       shopId: shop.id,
       title: formData.get('title'),
       categoryId: formData.get('categoryId') || shop.category || 'Others',
-      discountType: formData.get('discountType'),
-      discountValue: Number(formData.get('discountValue')),
-      minimumPurchase: Number(formData.get('minimumPurchase') || 0),
-      maximumDiscount: Number(formData.get('maximumDiscount') || 0),
+      offerType: offerType,
       validFrom,
       validUntil,
       terms: formData.get('terms') || '',
       active: formData.get('active') === 'true',
       updatedAt: new Date()
     };
+
+    if (offerType === 'percentage_flat') {
+      discountData.discountType = discountType;
+      discountData.discountValue = Number(formData.get('discountValue') || 0);
+      discountData.minimumPurchase = Number(formData.get('minimumPurchase') || 0);
+      discountData.maximumDiscount = Number(formData.get('maximumDiscount') || 0);
+    } else if (offerType === 'bxgy') {
+      discountData.bxgyBuyQty = Number(bxgyBuyQty) || 1;
+      discountData.bxgyGetQty = Number(bxgyGetQty) || 1;
+      discountData.bxgyRewardType = bxgyRewardType;
+      discountData.bxgyRewardValue = Number(bxgyRewardValue) || 0;
+      discountData.bxgyMatchRule = bxgyMatchRule;
+      discountData.minimumPurchase = Number(formData.get('minimumPurchase') || 0);
+      discountData.discountType = bxgyRewardType === 'percentage' ? 'percentage' : 'flat';
+      discountData.discountValue = bxgyRewardType === 'free' ? 100 : Number(bxgyRewardValue) || 0;
+    } else if (offerType === 'quantity_pricing') {
+      discountData.quantityPricingMethod = quantityPricingMethod;
+      discountData.quantityTiers = quantityTiers;
+      discountData.discountType = 'flat';
+      discountData.discountValue = quantityTiers.length > 0 ? quantityTiers[quantityTiers.length - 1].totalPrice : 0;
+    } else if (offerType === 'bundle') {
+      discountData.bundleItems = bundleItems;
+      discountData.bundlePrice = Number(bundlePrice) || 0;
+      discountData.bundleOriginalPrice = Number(bundleOriginalPrice) || 0;
+      discountData.discountType = 'flat';
+      discountData.discountValue = Math.max(0, bundleOriginalPrice - bundlePrice);
+    } else if (offerType === 'flash_sale') {
+      discountData.flashSaleOfferType = flashSaleOfferType;
+      discountData.flashSaleValue = Number(flashSaleValue) || 0;
+      discountData.minimumPurchase = Number(formData.get('minimumPurchase') || 0);
+      discountData.discountType = flashSaleOfferType === 'percentage' ? 'percentage' : 'flat';
+      discountData.discountValue = Number(flashSaleValue) || 0;
+    }
 
     try {
       if (editingDiscount) {
@@ -193,21 +288,21 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
     }
   };
 
-  const handleToggleDiscountActive = async (discount: any) => {
+  const handleToggleDiscountActive = async (disc: any) => {
     try {
-      await updateDoc(doc(db, 'discounts', discount.id), {
-        active: !discount.active
+      await updateDoc(doc(db, 'discounts', disc.id), {
+        active: !disc.active
       });
       await fetchDiscounts();
     } catch (err) {
-      console.error('Error toggling discount:', err);
+      console.error('Error toggling discount status:', err);
     }
   };
 
-  const handleDeleteDiscount = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this discount?')) return;
+  const handleDeleteDiscount = async (discountId: string) => {
+    if (!window.confirm('Are you sure you want to delete this discount?')) return;
     try {
-      await deleteDoc(doc(db, 'discounts', id));
+      await deleteDoc(doc(db, 'discounts', discountId));
       await fetchDiscounts();
     } catch (err) {
       console.error('Error deleting discount:', err);
@@ -219,14 +314,15 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const productData = {
+
+    const productData: any = {
       shopId: shop.id,
       name: formData.get('name'),
       price: Number(formData.get('price')),
       category: formData.get('category') || 'General',
-      quantity: formData.get('quantity'),
-      unit: formData.get('unit'),
-      description: formData.get('description'),
+      quantity: formData.get('quantity') || '',
+      unit: formData.get('unit') || '',
+      description: formData.get('description') || '',
       updatedAt: new Date()
     };
 
@@ -249,10 +345,10 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
     try {
-      await deleteDoc(doc(db, 'products', id));
+      await deleteDoc(doc(db, 'products', productId));
       await fetchProducts();
     } catch (err) {
       console.error('Error deleting product:', err);
@@ -260,196 +356,201 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-2rem)] flex flex-col border border-gray-100 my-auto overflow-hidden">
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
         
-        {/* Header with Navigation Tabs */}
-        <div className="bg-gray-50/80 border-b border-gray-100 p-4 sm:p-5 shrink-0">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-                <span>Edit Shop:</span>
-                <span className="text-blue-600 font-extrabold">{shop.shopName}</span>
-              </h2>
-              <p className="text-xs text-gray-500">{shop.area}, {shop.city}</p>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-200/60 rounded-full transition-colors text-gray-400 hover:text-gray-700">
-              <X size={20} />
-            </button>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <span>Edit Shop:</span>
+              <span className="text-blue-600 font-extrabold">{shop.shopName}</span>
+            </h2>
+            <p className="text-xs text-gray-500">{shop.area}, {shop.city}</p>
           </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition">
+            <X size={20} />
+          </button>
+        </div>
 
-          <div className="flex border-b border-gray-200 -mb-4 pt-1 gap-2 sm:gap-4 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('details')}
-              className={`pb-3 px-3 font-bold text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Store size={16} />
-              <span>Shop Details</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('discounts')}
-              className={`pb-3 px-3 font-bold text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'discounts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Tag size={16} />
-              <span>Discounts ({discounts.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`pb-3 px-3 font-bold text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'products' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Package size={16} />
-              <span>Products / Menu ({products.length})</span>
-            </button>
-          </div>
+        {/* Tab Bar */}
+        <div className="flex border-b border-gray-100 bg-gray-50/50 px-6 pt-2 shrink-0">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`px-4 py-3 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition ${
+              activeTab === 'details'
+                ? 'border-blue-600 text-blue-600 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Store size={16} />
+            <span>Shop Details</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('discounts')}
+            className={`px-4 py-3 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition ${
+              activeTab === 'discounts'
+                ? 'border-blue-600 text-blue-600 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Tag size={16} />
+            <span>Discounts ({discounts.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-3 font-bold text-xs sm:text-sm border-b-2 flex items-center gap-2 transition ${
+              activeTab === 'products'
+                ? 'border-blue-600 text-blue-600 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Package size={16} />
+            <span>Products / Menu ({products.length})</span>
+          </button>
         </div>
 
         {/* Tab 1: Shop Details */}
         {activeTab === 'details' && (
-          <>
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
-              <form id="edit-shop-form" onSubmit={handleSubmitDetails} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Shop Name <span className="text-red-500">*</span></label>
-                    <Input name="shopName" defaultValue={shop.shopName} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
-                    <select name="category" required defaultValue={shop.category || 'Others'} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                      {!categories.includes(shop.category || 'Others') && (
-                        <option value={shop.category || 'Others'}>{shop.category || 'Others'}</option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Approval Status</label>
-                    <select name="status" defaultValue={shop.status || 'pending'} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
-                      <option value="approved">Approved</option>
-                      <option value="pending">Pending Review</option>
-                      <option value="rejected">Rejected / Blocked</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Subscription Status</label>
-                    <select name="subscriptionStatus" defaultValue={shop.subscriptionStatus || 'free'} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
-                      <option value="trial">Pro Trial</option>
-                      <option value="active">Pro Active</option>
-                      <option value="free">Free Plan</option>
-                      <option value="expired">Expired</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
-                    <Input name="phone" type="tel" defaultValue={shop.phone || ''} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
-                    <Input name="email" type="email" defaultValue={shop.email || ''} />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Full Address <span className="text-red-500">*</span></label>
-                    <Input name="address" defaultValue={shop.address || ''} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-                    <Input name="city" defaultValue={shop.city || ''} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Area / Locality <span className="text-red-500">*</span></label>
-                    <Input name="area" defaultValue={shop.area || ''} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Opening Time</label>
-                    <Input name="openingTime" type="time" defaultValue={shop.openingTime || '09:00'} required />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Closing Time</label>
-                    <Input name="closingTime" type="time" defaultValue={shop.closingTime || '21:00'} required />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Description (About Shop)</label>
-                    <textarea 
-                      name="description" 
-                      defaultValue={shop.description || ''} 
-                      rows={3}
-                      className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <label className="block text-xs font-bold text-gray-700 mb-2">Cover Image</label>
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                      {currentImageUrl && (
-                        <img src={currentImageUrl} alt="Cover" className="w-20 h-20 object-cover rounded-lg shadow-sm border border-gray-200" />
-                      )}
-                      <div className="flex-1 space-y-2 w-full">
-                        <div>
-                          <label className="flex items-center justify-center w-full sm:w-auto px-4 py-2 border border-gray-300 shadow-sm text-xs font-bold rounded-lg text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
-                            {uploadingImage ? <Loader2 size={15} className="animate-spin mr-2" /> : <ImagePlus size={15} className="mr-2" />}
-                            {uploadingImage ? 'Uploading...' : 'Upload Image File'}
-                            <input type="file" accept="image/*" className="sr-only" onChange={handleImageUpload} disabled={uploadingImage} />
-                          </label>
-                        </div>
-                        <div>
-                          <Input name="coverImageUrl" defaultValue={currentImageUrl} placeholder="Paste Image Link (https://...)" className="text-xs" onChange={(e) => setCurrentImageUrl(e.target.value)} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Google Maps URL (Optional)</label>
-                    <Input name="googleMapsUrl" defaultValue={shop.googleMapsUrl || ''} placeholder="https://maps.google.com/..." />
-                  </div>
-                </div>
-              </form>
-            </div>
+          <form onSubmit={handleSubmitDetails} className="p-6 overflow-y-auto space-y-6 flex-1">
             
-            <div className="p-4 sm:p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 shrink-0">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" form="edit-shop-form" disabled={loading} className="bg-blue-600 hover:bg-blue-700 font-bold text-white">
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
+            {/* Cover Image Section */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Shop Cover Photo</label>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-full sm:w-48 h-28 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden relative group flex items-center justify-center shrink-0">
+                  {currentImageUrl ? (
+                    <img src={currentImageUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Store className="text-gray-400" size={32} />
+                  )}
+                  {uploadingImage && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="animate-spin text-white" size={24} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 flex-1 w-full">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl cursor-pointer transition">
+                    <ImagePlus size={16} />
+                    <span>Choose New Photo</span>
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                  <p className="text-[11px] text-gray-500">Supported formats: JPG, PNG, WEBP. Max size: 800KB.</p>
+                  <Input name="coverImageUrl" value={currentImageUrl} onChange={(e) => setCurrentImageUrl(e.target.value)} placeholder="Or paste image URL here..." className="text-xs" />
+                </div>
+              </div>
             </div>
-          </>
+
+            {/* General Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Shop Name *</label>
+                <Input name="shopName" defaultValue={shop.shopName} required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Category *</label>
+                <select name="category" defaultValue={shop.category} required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
+                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  {!categories.includes(shop.category) && <option value={shop.category}>{shop.category}</option>}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number *</label>
+                <Input name="phone" defaultValue={shop.phone} required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+                <Input name="email" type="email" defaultValue={shop.email} />
+              </div>
+            </div>
+
+            {/* Location Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-bold text-gray-700 mb-1">Address *</label>
+                <Input name="address" defaultValue={shop.address} required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Area / Locality *</label>
+                <Input name="area" defaultValue={shop.area} required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">City *</label>
+                <Input name="city" defaultValue={shop.city} required />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Google Maps URL</label>
+                <Input name="googleMapsUrl" defaultValue={shop.googleMapsUrl || ''} placeholder="https://maps.google.com/..." />
+              </div>
+            </div>
+
+            {/* Timing & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Opening Time</label>
+                <Input name="openingTime" type="time" defaultValue={shop.openingTime || '09:00'} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Closing Time</label>
+                <Input name="closingTime" type="time" defaultValue={shop.closingTime || '21:00'} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Shop Status</label>
+                <select name="status" defaultValue={shop.status} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
+                  <option value="pending">Pending Approval</option>
+                  <option value="approved">Approved (Live)</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Subscription Status</label>
+                <select name="subscriptionStatus" defaultValue={shop.subscriptionStatus || 'trial'} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
+                  <option value="trial">Trial (30 Days Active)</option>
+                  <option value="active">Active (Paid Pro)</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Shop Description</label>
+              <textarea name="description" defaultValue={shop.description || ''} rows={3} className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Brief description of products/services..." />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 font-bold">{loading ? 'Saving...' : 'Save Changes'}</Button>
+            </div>
+          </form>
         )}
 
-        {/* Tab 2: Discounts */}
+        {/* Tab 2: Discounts / Offers */}
         {activeTab === 'discounts' && (
           <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-gray-900 text-sm sm:text-base">Shop Discounts & Offers</h3>
               {!isAddingDiscount && !editingDiscount && (
-                <Button size="sm" onClick={() => setIsAddingDiscount(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1">
+                <Button size="sm" onClick={() => { setIsAddingDiscount(true); setEditingDiscount(null); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1">
                   <Plus size={14} /> Add Discount
                 </Button>
               )}
             </div>
 
             {(isAddingDiscount || editingDiscount) && (
-              <form onSubmit={handleSaveDiscount} className="bg-gray-50 p-4 rounded-xl border border-blue-100 space-y-3 animate-in fade-in duration-200">
+              <form onSubmit={handleSaveDiscount} className="bg-gray-50 p-4 rounded-xl border border-blue-100 space-y-4 animate-in fade-in duration-200">
                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                   <h4 className="font-bold text-xs text-blue-900 uppercase tracking-wider">{editingDiscount ? 'Edit Discount' : 'Create New Discount'}</h4>
                   <button type="button" onClick={() => { setIsAddingDiscount(false); setEditingDiscount(null); }} className="text-gray-400 hover:text-gray-600">
@@ -457,10 +558,40 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                   </button>
                 </div>
 
+                {/* Offer Type Tabs Selector inside Admin Modal */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Select Offer Type *</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    {[
+                      { id: 'percentage_flat', name: '% / Flat', icon: Percent },
+                      { id: 'bxgy', name: 'Buy X Get Y', icon: Gift },
+                      { id: 'quantity_pricing', name: 'Buy More Save More', icon: Layers },
+                      { id: 'bundle', name: 'Combo Bundle', icon: Package },
+                      { id: 'flash_sale', name: 'Flash Sale', icon: Zap },
+                    ].map(tab => {
+                      const Icon = tab.icon;
+                      const isSel = offerType === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setOfferType(tab.id as OfferType)}
+                          className={`p-2 rounded-lg text-left transition flex items-center gap-1.5 border text-xs ${
+                            isSel ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold ring-1 ring-blue-600' : 'border-gray-200 bg-white text-gray-700'
+                          }`}
+                        >
+                          <Icon size={14} className={isSel ? 'text-blue-600' : 'text-gray-400'} />
+                          <span className="truncate">{tab.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-gray-700 mb-1">Offer Title *</label>
-                    <Input name="title" defaultValue={editingDiscount?.title || ''} required placeholder="e.g. 20% OFF Footwear" />
+                    <Input name="title" defaultValue={editingDiscount?.title || ''} required placeholder="e.g. 20% OFF Footwear / Buy 2 Get 1 Free" />
                   </div>
 
                   <div>
@@ -480,28 +611,152 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Discount Type *</label>
-                    <select name="discountType" defaultValue={editingDiscount?.discountType || 'percentage'} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold">
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="flat">Flat Amount (₹)</option>
-                    </select>
-                  </div>
+                  {/* 1. PERCENTAGE / FLAT FIELDS */}
+                  {offerType === 'percentage_flat' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Discount Type *</label>
+                        <select value={discountType} onChange={(e) => setDiscountType(e.target.value as any)} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold">
+                          <option value="percentage">Percentage (%)</option>
+                          <option value="flat">Flat Amount (₹)</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value *</label>
-                    <Input name="discountValue" type="number" defaultValue={editingDiscount?.discountValue || ''} required placeholder="e.g. 20" min="1" />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value *</label>
+                        <Input name="discountValue" type="number" defaultValue={editingDiscount?.discountValue || ''} required placeholder="e.g. 20" min="1" />
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Min Purchase (₹)</label>
-                    <Input name="minimumPurchase" type="number" defaultValue={editingDiscount?.minimumPurchase ?? 0} placeholder="1000" min="0" />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Min Purchase (₹)</label>
+                        <Input name="minimumPurchase" type="number" defaultValue={editingDiscount?.minimumPurchase ?? 0} placeholder="1000" min="0" />
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Max Discount (₹)</label>
-                    <Input name="maximumDiscount" type="number" defaultValue={editingDiscount?.maximumDiscount ?? 0} placeholder="500" min="0" />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Max Discount Cap (₹)</label>
+                        <Input name="maximumDiscount" type="number" defaultValue={editingDiscount?.maximumDiscount ?? 0} placeholder="500" min="0" />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 2. BUY X GET Y FIELDS */}
+                  {offerType === 'bxgy' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Buy Qty (X)</label>
+                        <Input type="number" value={bxgyBuyQty} onChange={(e) => setBxgyBuyQty(Number(e.target.value))} min="1" required />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Get Qty (Y)</label>
+                        <Input type="number" value={bxgyGetQty} onChange={(e) => setBxgyGetQty(Number(e.target.value))} min="1" required />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Reward Type</label>
+                        <select value={bxgyRewardType} onChange={(e) => setBxgyRewardType(e.target.value as any)} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold">
+                          <option value="free">100% Free</option>
+                          <option value="percentage">Percentage OFF on Y</option>
+                          <option value="flat">Flat ₹ OFF on Y</option>
+                        </select>
+                      </div>
+                      {bxgyRewardType !== 'free' && (
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Reward Discount Value</label>
+                          <Input type="number" value={bxgyRewardValue} onChange={(e) => setBxgyRewardValue(Number(e.target.value))} min="1" required />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* 3. QUANTITY PRICING FIELDS */}
+                  {offerType === 'quantity_pricing' && (
+                    <div className="sm:col-span-2 space-y-2 bg-white p-3 rounded-xl border border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-800">Quantity Slabs / Tiers</span>
+                        <Button type="button" size="sm" variant="outline" onClick={handleAddTier} className="text-xs py-1 h-7">
+                          + Add Tier
+                        </Button>
+                      </div>
+                      {quantityTiers.map((t, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <Input type="number" placeholder="Qty" value={t.quantity} onChange={(e) => {
+                            const updated = [...quantityTiers];
+                            updated[idx].quantity = Number(e.target.value);
+                            setQuantityTiers(updated);
+                          }} className="text-xs w-20" />
+                          <Input type="number" placeholder="Total Price ₹" value={t.totalPrice} onChange={(e) => {
+                            const updated = [...quantityTiers];
+                            updated[idx].totalPrice = Number(e.target.value);
+                            setQuantityTiers(updated);
+                          }} className="text-xs flex-1" />
+                          <Input type="text" placeholder="Label (e.g. 1 Pair)" value={t.label || ''} onChange={(e) => {
+                            const updated = [...quantityTiers];
+                            updated[idx].label = e.target.value;
+                            setQuantityTiers(updated);
+                          }} className="text-xs flex-1" />
+                          <button type="button" onClick={() => handleRemoveTier(idx)} className="text-red-500 hover:text-red-700 p-1">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 4. COMBO BUNDLE FIELDS */}
+                  {offerType === 'bundle' && (
+                    <div className="sm:col-span-2 space-y-2 bg-white p-3 rounded-xl border border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-800">Bundle Package Items</span>
+                        <Button type="button" size="sm" variant="outline" onClick={handleAddBundleItem} className="text-xs py-1 h-7">
+                          + Add Item
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500">Bundle Offer Price (₹)</label>
+                          <Input type="number" value={bundlePrice} onChange={(e) => setBundlePrice(Number(e.target.value))} className="text-xs" required />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500">Original Total (₹)</label>
+                          <Input type="number" value={bundleOriginalPrice} onChange={(e) => setBundleOriginalPrice(Number(e.target.value))} className="text-xs" required />
+                        </div>
+                      </div>
+                      {bundleItems.map((item, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <Input type="text" placeholder="Item name" value={item.name} onChange={(e) => {
+                            const updated = [...bundleItems];
+                            updated[idx].name = e.target.value;
+                            setBundleItems(updated);
+                          }} className="text-xs flex-1" />
+                          <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => {
+                            const updated = [...bundleItems];
+                            updated[idx].quantity = Number(e.target.value);
+                            setBundleItems(updated);
+                          }} className="text-xs w-16" />
+                          <button type="button" onClick={() => handleRemoveBundleItem(idx)} className="text-red-500 hover:text-red-700 p-1">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 5. FLASH SALE FIELDS */}
+                  {offerType === 'flash_sale' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Flash Deal Type</label>
+                        <select value={flashSaleOfferType} onChange={(e) => setFlashSaleOfferType(e.target.value as any)} className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold">
+                          <option value="percentage">Percentage OFF (%)</option>
+                          <option value="flat">Flat Amount OFF (₹)</option>
+                          <option value="fixed_price">Fixed Flash Price (₹)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Flash Value / Price</label>
+                        <Input type="number" value={flashSaleValue} onChange={(e) => setFlashSaleValue(Number(e.target.value))} className="text-xs" required />
+                      </div>
+                    </>
+                  )}
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Valid From</label>
@@ -525,7 +780,7 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                     <label className="block text-xs font-bold text-gray-700 mb-1">Terms & Conditions</label>
                     <textarea 
                       name="terms" 
-                      rows={3} 
+                      rows={2} 
                       defaultValue={editingDiscount?.terms || "• Valid on selected products\n• Cannot be combined with other offers\n• One redemption per user per offer"} 
                       className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600" 
                       placeholder="Enter offer rules or conditions..."
