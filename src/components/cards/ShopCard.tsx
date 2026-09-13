@@ -4,6 +4,7 @@ import { MapPin, Star, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { generateShopSlug } from '../../utils/slug';
 import { getShopHoursStatus } from '../../utils/shopHours';
+import { getShopCardOfferLabel } from '../../utils/discountEngine';
 
 
 interface ShopCardProps {
@@ -85,9 +86,7 @@ export const ShopCard = React.memo(function ShopCard({ shop }: ShopCardProps) {
           {shop.mainDiscount ? (
             <div className="bg-blue-50 border border-blue-100/80 rounded-lg p-2.5 flex items-center justify-center">
               <span className="text-xs font-bold text-blue-700 block truncate text-center">
-                {shop.mainDiscount.discountType === 'percentage' 
-                  ? `${shop.mainDiscount.discountValue}% OFF Available` 
-                  : `₹${shop.mainDiscount.discountValue} OFF Available`}
+                {getShopCardOfferLabel(shop.mainDiscount)}
               </span>
             </div>
           ) : (

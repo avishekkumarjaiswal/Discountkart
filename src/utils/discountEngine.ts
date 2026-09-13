@@ -66,6 +66,7 @@ export interface DiscountOffer {
  * Returns human readable tag/badge text for any offer type
  */
 export function getOfferBadgeText(discount: Partial<DiscountOffer>): string {
+  if (!discount) return 'OFFER AVAILABLE';
   const type = discount.offerType || (discount.discountType ? 'percentage_flat' : 'percentage_flat');
   
   switch (type) {
@@ -76,7 +77,8 @@ export function getOfferBadgeText(discount: Partial<DiscountOffer>): string {
       if (reward === 'free') {
         return `BUY ${buy} GET ${get} FREE`;
       } else if (reward === 'percentage') {
-        return `BUY ${buy} GET ${get} @ ${discount.bxgyRewardValue || 50}% OFF`;
+        const val = Math.min(100, Math.max(1, discount.bxgyRewardValue || 50));
+        return `BUY ${buy} GET ${get} @ ${val}% OFF`;
       } else if (reward === 'flat') {
         return `BUY ${buy} GET ${get} @ ₹${discount.bxgyRewardValue || 100} OFF`;
       }
@@ -90,7 +92,7 @@ export function getOfferBadgeText(discount: Partial<DiscountOffer>): string {
         const bestTier = sorted[sorted.length - 1];
         return `BUY MORE SAVE MORE (${bestTier.quantity} for ₹${bestTier.totalPrice})`;
       }
-      return 'QUANTITY DISCOUNT';
+      return 'BUY MORE SAVE MORE';
     }
 
     case 'bundle': {
@@ -98,8 +100,9 @@ export function getOfferBadgeText(discount: Partial<DiscountOffer>): string {
     }
 
     case 'flash_sale': {
-      if (discount.flashSaleOfferType === 'percentage' || discount.discountType === 'percentage') {
-        return `⚡ FLASH SALE ${discount.flashSaleValue || discount.discountValue || 30}% OFF`;
+      if (discount.flashSaleOfferType === 'percentage' || (discount.discountType === 'percentage' && !discount.flashSaleOfferType)) {
+        const val = Math.min(100, Math.max(1, discount.flashSaleValue || discount.discountValue || 30));
+        return `⚡ FLASH SALE ${val}% OFF`;
       }
       return `⚡ FLASH SALE ₹${discount.flashSaleValue || discount.discountValue || 500} OFF`;
     }
@@ -107,9 +110,58 @@ export function getOfferBadgeText(discount: Partial<DiscountOffer>): string {
     case 'percentage_flat':
     default: {
       if (discount.discountType === 'percentage') {
-        return `${discount.discountValue}% OFF`;
+        // Cap percentage discount display at 100% max
+        const val = Math.min(100, Math.max(1, discount.discountValue || 0));
+        return `${val}% OFF`;
       }
-      return `₹${discount.discountValue} OFF`;
+      return `₹${discount.discountValue || 0} OFF`;
+    }
+  }
+}
+
+/**
+ * Returns formatted label for ShopCard buttons (e.g. "Buy 2 Get 1 Free Available", "20% OFF Available")
+ */
+export function getShopCardOfferLabel(discount: Partial<DiscountOffer>): string {
+  if (!discount) return 'Explore Shop';
+  const type = discount.offerType || 'percentage_flat';
+
+  switch (type) {
+    case 'bxgy': {
+      const buy = discount.bxgyBuyQty || 1;
+      const get = discount.bxgyGetQty || 1;
+      const reward = discount.bxgyRewardType || 'free';
+      if (reward === 'free') {
+        return `Buy ${buy} Get ${get} Free Available`;
+      }
+      return `Buy ${buy} Get ${get} Offer Available`;
+    }
+    case 'quantity_pricing': {
+      const tiers = discount.quantityTiers || [];
+      if (tiers.length > 0) {
+        const sorted = [...tiers].sort((a, b) => a.quantity - b.quantity);
+        const bestTier = sorted[sorted.length - 1];
+        return `${bestTier.quantity} for ₹${bestTier.totalPrice} (Buy More Save More)`;
+      }
+      return `Buy More Save More Available`;
+    }
+    case 'bundle': {
+      return `Combo Bundle @ ₹${discount.bundlePrice || discount.discountValue || 999}`;
+    }
+    case 'flash_sale': {
+      if (discount.flashSaleOfferType === 'percentage' || discount.discountType === 'percentage') {
+        const val = Math.min(100, Math.max(1, discount.flashSaleValue || discount.discountValue || 30));
+        return `⚡ Flash Sale ${val}% OFF`;
+      }
+      return `⚡ Flash Sale ₹${discount.flashSaleValue || discount.discountValue || 500} OFF`;
+    }
+    case 'percentage_flat':
+    default: {
+      if (discount.discountType === 'percentage') {
+        const val = Math.min(100, Math.max(1, discount.discountValue || 0));
+        return `${val}% OFF Available`;
+      }
+      return `₹${discount.discountValue || 0} OFF Available`;
     }
   }
 }
