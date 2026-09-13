@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'fire
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { getShopPlanStatus } from '../../lib/subscription';
-import { Crown, Percent, Gift, Layers, Package, Zap, Plus, Trash2 } from 'lucide-react';
+import { Crown, Percent, Gift, Layers, Package, Zap, Plus, Trash2, Wand2, Sparkles } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Input } from '../../components/ui/Input';
@@ -20,11 +20,15 @@ export default function CreateDiscount() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 5 Main Offer Types State
+  // Form State
+  const [title, setTitle] = useState('');
   const [offerType, setOfferType] = useState<OfferType>('percentage_flat');
 
   // Percentage / Flat fields
   const [discountType, setDiscountType] = useState<'percentage' | 'flat'>('percentage');
+  const [discountValue, setDiscountValue] = useState<number>(20);
+  const [minimumPurchase, setMinimumPurchase] = useState<number>(0);
+  const [maximumDiscount, setMaximumDiscount] = useState<number>(0);
 
   // Buy X Get Y fields
   const [bxgyBuyQty, setBxgyBuyQty] = useState<number>(2);
@@ -79,6 +83,80 @@ export default function CreateDiscount() {
     };
     fetchShop();
   }, [user]);
+
+  // ⚡ Presets to fill form in 1-click
+  const applyPreset = (presetKey: string) => {
+    const categoryName = selectedCategory || shop?.category || 'Collection';
+    if (presetKey === '20_percent') {
+      setOfferType('percentage_flat');
+      setDiscountType('percentage');
+      setDiscountValue(20);
+      setTitle(`20% OFF ${categoryName}`);
+    } else if (presetKey === 'flat_200') {
+      setOfferType('percentage_flat');
+      setDiscountType('flat');
+      setDiscountValue(200);
+      setMinimumPurchase(999);
+      setTitle(`₹200 OFF on Orders Above ₹999`);
+    } else if (presetKey === 'b2g1') {
+      setOfferType('bxgy');
+      setBxgyBuyQty(2);
+      setBxgyGetQty(1);
+      setBxgyRewardType('free');
+      setTitle(`Buy 2 Get 1 FREE on ${categoryName}`);
+    } else if (presetKey === 'quantity_tier') {
+      setOfferType('quantity_pricing');
+      setQuantityPricingMethod('fixed_total');
+      setQuantityTiers([
+        { quantity: 1, totalPrice: 800, label: '1 Item' },
+        { quantity: 2, totalPrice: 1500, label: '2 Items' },
+        { quantity: 3, totalPrice: 2100, label: '3 Items' }
+      ]);
+      setTitle(`Buy More Save More - 2 for ₹1,500`);
+    } else if (presetKey === 'combo_999') {
+      setOfferType('bundle');
+      setBundlePrice(999);
+      setBundleOriginalPrice(1500);
+      setBundleItems([
+        { name: 'Primary Item', quantity: 1, originalPrice: 1000 },
+        { name: 'Accessory', quantity: 1, originalPrice: 500 }
+      ]);
+      setTitle(`Combo Bundle Offer @ ₹999`);
+    } else if (presetKey === 'flash_30') {
+      setOfferType('flash_sale');
+      setFlashSaleOfferType('percentage');
+      setFlashSaleValue(30);
+      setTitle(`⚡ Flash Sale - 30% OFF Today Only`);
+    }
+  };
+
+  const handleAutoGenerateTitle = () => {
+    const categoryName = selectedCategory || shop?.category || 'Collection';
+    if (offerType === 'percentage_flat') {
+      if (discountType === 'percentage') {
+        setTitle(`${discountValue}% OFF on ${categoryName}`);
+      } else {
+        setTitle(`₹${discountValue} OFF on ${categoryName}`);
+      }
+    } else if (offerType === 'bxgy') {
+      if (bxgyRewardType === 'free') {
+        setTitle(`Buy ${bxgyBuyQty} Get ${bxgyGetQty} FREE on ${categoryName}`);
+      } else {
+        setTitle(`Buy ${bxgyBuyQty} Get ${bxgyGetQty} at ${bxgyRewardValue}% OFF`);
+      }
+    } else if (offerType === 'quantity_pricing') {
+      if (quantityTiers.length > 0) {
+        const t = quantityTiers[Math.min(1, quantityTiers.length - 1)];
+        setTitle(`Buy More Save More - ${t.quantity} for ₹${t.totalPrice}`);
+      } else {
+        setTitle(`Quantity Discount on ${categoryName}`);
+      }
+    } else if (offerType === 'bundle') {
+      setTitle(`Special Combo Bundle @ ₹${bundlePrice}`);
+    } else if (offerType === 'flash_sale') {
+      setTitle(`⚡ Flash Sale ${flashSaleValue}% OFF - Today Only`);
+    }
+  };
 
   const handleAddTier = () => {
     const nextQty = quantityTiers.length > 0 ? quantityTiers[quantityTiers.length - 1].quantity + 1 : 1;
@@ -139,7 +217,7 @@ export default function CreateDiscount() {
     try {
       const payload: any = {
         shopId: shop.id,
-        title: formData.get('title'),
+        title: title || formData.get('title'),
         categoryId: formData.get('categoryId'),
         offerType: offerType,
         validFrom: validFromDate,
@@ -151,19 +229,18 @@ export default function CreateDiscount() {
         updatedAt: serverTimestamp()
       };
 
-      // Populate offer-specific fields
       if (offerType === 'percentage_flat') {
         payload.discountType = discountType;
-        payload.discountValue = Number(formData.get('discountValue')) || 0;
-        payload.minimumPurchase = Number(formData.get('minimumPurchase')) || 0;
-        payload.maximumDiscount = Number(formData.get('maximumDiscount')) || 0;
+        payload.discountValue = Number(discountValue) || Number(formData.get('discountValue')) || 0;
+        payload.minimumPurchase = Number(minimumPurchase) || Number(formData.get('minimumPurchase')) || 0;
+        payload.maximumDiscount = Number(maximumDiscount) || Number(formData.get('maximumDiscount')) || 0;
       } else if (offerType === 'bxgy') {
         payload.bxgyBuyQty = Number(bxgyBuyQty) || 1;
         payload.bxgyGetQty = Number(bxgyGetQty) || 1;
         payload.bxgyRewardType = bxgyRewardType;
         payload.bxgyRewardValue = Number(bxgyRewardValue) || 0;
         payload.bxgyMatchRule = bxgyMatchRule;
-        payload.minimumPurchase = Number(formData.get('minimumPurchase')) || 0;
+        payload.minimumPurchase = Number(minimumPurchase) || Number(formData.get('minimumPurchase')) || 0;
         payload.discountType = bxgyRewardType === 'percentage' ? 'percentage' : 'flat';
         payload.discountValue = bxgyRewardType === 'free' ? 100 : Number(bxgyRewardValue) || 0;
       } else if (offerType === 'quantity_pricing') {
@@ -185,7 +262,7 @@ export default function CreateDiscount() {
         payload.flashSaleValue = Number(flashSaleValue) || 0;
         payload.stockLimit = Number(stockLimit) || 0;
         payload.maxPerCustomer = Number(maxPerCustomer) || 0;
-        payload.minimumPurchase = Number(formData.get('minimumPurchase')) || 0;
+        payload.minimumPurchase = Number(minimumPurchase) || Number(formData.get('minimumPurchase')) || 0;
         payload.discountType = flashSaleOfferType === 'percentage' ? 'percentage' : 'flat';
         payload.discountValue = Number(flashSaleValue) || 0;
       }
@@ -222,8 +299,10 @@ export default function CreateDiscount() {
 
   return (
     <div className="max-w-5xl mx-auto w-full space-y-6 pb-12">
-      <h1 className="text-2xl font-bold text-gray-900">Create New Offer</h1>
-      
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Create New Offer</h1>
+      </div>
+
       {hasReachedLimit && (
         <div className="bg-blue-50 border border-blue-200 text-blue-900 p-4 rounded-xl flex items-start gap-3">
           <Crown className="text-blue-600 flex-shrink-0 mt-0.5" size={24} />
@@ -238,6 +317,36 @@ export default function CreateDiscount() {
       )}
 
       {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
+
+      {/* ⚡ 1-CLICK POPULAR OFFER PRESETS BAR */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 rounded-2xl shadow-md space-y-2">
+        <div className="flex items-center gap-2">
+          <Sparkles size={18} className="text-amber-400 fill-amber-400" />
+          <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider">Fast Listing: 1-Click Offer Templates</span>
+        </div>
+        <p className="text-xs text-blue-200">Click any preset below to instantly pre-fill the offer form in less than 1 second!</p>
+        
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button type="button" onClick={() => applyPreset('20_percent')} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1 transition">
+            🏷️ 20% OFF Sale
+          </button>
+          <button type="button" onClick={() => applyPreset('flat_200')} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1 transition">
+            💵 ₹200 OFF Above ₹999
+          </button>
+          <button type="button" onClick={() => applyPreset('b2g1')} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1 transition">
+            🎁 Buy 2 Get 1 Free
+          </button>
+          <button type="button" onClick={() => applyPreset('quantity_tier')} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1 transition">
+            🥞 1 for ₹800, 2 for ₹1,500
+          </button>
+          <button type="button" onClick={() => applyPreset('combo_999')} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1 transition">
+            📦 Combo Pack @ ₹999
+          </button>
+          <button type="button" onClick={() => applyPreset('flash_30')} className="px-3 py-1.5 bg-amber-500/80 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs rounded-xl border border-amber-400 flex items-center gap-1 transition">
+            ⚡ Flash Sale 30% OFF
+          </button>
+        </div>
+      </div>
 
       {/* Offer Type Tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -270,16 +379,23 @@ export default function CreateDiscount() {
       
       <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Offer Title</label>
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-medium text-gray-700">Offer Title</label>
+            <button
+              type="button"
+              onClick={handleAutoGenerateTitle}
+              className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition"
+            >
+              <Wand2 size={13} />
+              <span>Auto-Fill Title</span>
+            </button>
+          </div>
           <Input 
             name="title" 
             required 
-            placeholder={
-              offerType === 'bxgy' ? 'Buy 2 Get 1 Free Footwear' :
-              offerType === 'quantity_pricing' ? 'Buy More Save More - Premium Shoes' :
-              offerType === 'bundle' ? 'Shirt + Jeans Combo Pack' :
-              offerType === 'flash_sale' ? 'Flash Sale 30% OFF Today Only' : '20% OFF Footwear'
-            } 
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. 20% OFF Footwear / Buy 2 Get 1 Free" 
           />
         </div>
 
@@ -331,17 +447,17 @@ export default function CreateDiscount() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Discount Value</label>
-                <Input name="discountValue" type="number" required placeholder={discountType === 'percentage' ? '20' : '200'} min="1" />
+                <Input name="discountValue" type="number" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} required placeholder={discountType === 'percentage' ? '20' : '200'} min="1" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Min Order Value (₹)</label>
-                <Input name="minimumPurchase" type="number" placeholder="1000" min="0" />
+                <Input name="minimumPurchase" type="number" value={minimumPurchase} onChange={(e) => setMinimumPurchase(Number(e.target.value))} placeholder="1000" min="0" />
               </div>
             </div>
             {discountType === 'percentage' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Discount Cap (₹) (Optional)</label>
-                <Input name="maximumDiscount" type="number" placeholder="500" min="0" />
+                <Input name="maximumDiscount" type="number" value={maximumDiscount} onChange={(e) => setMaximumDiscount(Number(e.target.value))} placeholder="500" min="0" />
               </div>
             )}
           </div>
@@ -397,7 +513,7 @@ export default function CreateDiscount() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Min Order Value (₹) (Optional)</label>
-                <Input name="minimumPurchase" type="number" placeholder="0" min="0" />
+                <Input name="minimumPurchase" type="number" value={minimumPurchase} onChange={(e) => setMinimumPurchase(Number(e.target.value))} placeholder="0" min="0" />
               </div>
             </div>
           </div>
@@ -594,7 +710,7 @@ export default function CreateDiscount() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">End Date & Time</label>
-            <Input name="validUntil" type="datetime-local" required defaultValue={new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0, 16)} />
+            <Input name="validUntil" type="datetime-local" required defaultValue={new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0, 16)} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

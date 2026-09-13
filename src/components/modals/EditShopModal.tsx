@@ -4,7 +4,7 @@ import { db } from '../../lib/firebase';
 import { Button } from '../ui/Button';
 import { useCategories } from '../../hooks/useCategories';
 import { Input } from '../ui/Input';
-import { X, ImagePlus, Loader2, Store, Tag, Package, Plus, Trash2, Edit3, Check, Percent, Gift, Layers, Zap } from 'lucide-react';
+import { X, ImagePlus, Loader2, Store, Tag, Package, Plus, Trash2, Edit3, Check, Percent, Gift, Layers, Zap, Copy, Sparkles, Wand2 } from 'lucide-react';
 import { getOfferBadgeText, OfferType, QuantityTier, BundleItem } from '../../utils/discountEngine';
 
 interface EditShopModalProps {
@@ -285,6 +285,21 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
       console.error('Error saving discount:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDuplicateDiscount = async (disc: any) => {
+    try {
+      const { id, createdAt, updatedAt, ...rest } = disc;
+      await addDoc(collection(db, 'discounts'), {
+        ...rest,
+        title: `${rest.title} (Copy)`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      await fetchDiscounts();
+    } catch (err) {
+      console.error('Error duplicating discount:', err);
     }
   };
 
@@ -832,6 +847,13 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                         title="Edit Discount"
                       >
                         <Edit3 size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleDuplicateDiscount(disc)}
+                        className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg"
+                        title="Duplicate Offer"
+                      >
+                        <Copy size={15} />
                       </button>
                       <button
                         onClick={() => handleDeleteDiscount(disc.id)}

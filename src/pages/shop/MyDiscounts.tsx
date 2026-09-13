@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
@@ -48,6 +48,22 @@ export default function Discounts() {
 
     fetchDiscounts();
   }, [user]);
+
+  const handleDuplicate = async (discountToDuplicate: any) => {
+    try {
+      const { id, createdAt, updatedAt, ...rest } = discountToDuplicate;
+      const docRef = await addDoc(collection(db, 'discounts'), {
+        ...rest,
+        title: `${rest.title} (Copy)`,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      setDiscounts(prev => [{ id: docRef.id, ...rest, title: `${rest.title} (Copy)` }, ...prev]);
+    } catch (error) {
+      console.error('Error duplicating discount:', error);
+      alert('Failed to duplicate discount');
+    }
+  };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -179,9 +195,20 @@ export default function Discounts() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleDuplicate(discount);
+                          }}
+                          className="text-emerald-600 hover:underline font-medium"
+                          title="Duplicate this offer"
+                        >
+                          Duplicate
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setConfirmDeleteId(discount.id);
                           }}
-                          className="text-red-600 hover:underline font-medium text-red-600"
+                          className="text-red-600 hover:underline font-medium"
                         >
                           Delete
                         </button>
