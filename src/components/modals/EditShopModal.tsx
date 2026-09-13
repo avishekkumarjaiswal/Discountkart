@@ -131,18 +131,44 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
     }
   };
 
+  const formatDateForInput = (dateVal: any): string => {
+    if (!dateVal) return '';
+    try {
+      const d = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().split('T')[0];
+    } catch (e) {
+      return '';
+    }
+  };
+
   // Discount Actions
   const handleSaveDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const discountData = {
+
+    const validFromRaw = formData.get('validFrom') as string;
+    const validUntilRaw = formData.get('validUntil') as string;
+
+    const validFrom = validFromRaw ? new Date(validFromRaw) : new Date();
+    let validUntil: Date | null = null;
+    if (validUntilRaw) {
+      validUntil = new Date(validUntilRaw);
+      validUntil.setHours(23, 59, 59, 999);
+    }
+
+    const discountData: any = {
       shopId: shop.id,
       title: formData.get('title'),
+      categoryId: formData.get('categoryId') || shop.category || 'Others',
       discountType: formData.get('discountType'),
       discountValue: Number(formData.get('discountValue')),
       minimumPurchase: Number(formData.get('minimumPurchase') || 0),
-      terms: formData.get('terms'),
+      maximumDiscount: Number(formData.get('maximumDiscount') || 0),
+      validFrom,
+      validUntil,
+      terms: formData.get('terms') || '',
       active: formData.get('active') === 'true',
       updatedAt: new Date()
     };
@@ -432,8 +458,25 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Discount Title *</label>
-                    <Input name="title" defaultValue={editingDiscount?.title || ''} required placeholder="e.g. 20% OFF on All Footwear" />
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Offer Title *</label>
+                    <Input name="title" defaultValue={editingDiscount?.title || ''} required placeholder="e.g. 20% OFF Footwear" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Category *</label>
+                    <select 
+                      name="categoryId" 
+                      required 
+                      defaultValue={editingDiscount?.categoryId || shop.category || 'Others'} 
+                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      {!categories.includes(shop.category || 'Others') && (
+                        <option value={shop.category || 'Others'}>{shop.category || 'Others'}</option>
+                      )}
+                    </select>
                   </div>
 
                   <div>
@@ -446,12 +489,27 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value *</label>
-                    <Input name="discountValue" type="number" defaultValue={editingDiscount?.discountValue || ''} required placeholder="e.g. 20" />
+                    <Input name="discountValue" type="number" defaultValue={editingDiscount?.discountValue || ''} required placeholder="e.g. 20" min="1" />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Minimum Purchase (₹)</label>
-                    <Input name="minimumPurchase" type="number" defaultValue={editingDiscount?.minimumPurchase || 0} placeholder="0 for no minimum" />
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Min Purchase (₹)</label>
+                    <Input name="minimumPurchase" type="number" defaultValue={editingDiscount?.minimumPurchase ?? 0} placeholder="1000" min="0" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Max Discount (₹)</label>
+                    <Input name="maximumDiscount" type="number" defaultValue={editingDiscount?.maximumDiscount ?? 0} placeholder="500" min="0" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Valid From</label>
+                    <Input name="validFrom" type="date" defaultValue={formatDateForInput(editingDiscount?.validFrom)} />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Valid Until</label>
+                    <Input name="validUntil" type="date" defaultValue={formatDateForInput(editingDiscount?.validUntil)} />
                   </div>
 
                   <div>
@@ -463,8 +521,14 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Terms & Conditions (Optional)</label>
-                    <Input name="terms" defaultValue={editingDiscount?.terms || ''} placeholder="e.g. Valid on minimum bill of ₹500" />
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Terms & Conditions</label>
+                    <textarea 
+                      name="terms" 
+                      rows={3} 
+                      defaultValue={editingDiscount?.terms || "• Valid on selected products\n• Cannot be combined with other offers\n• One redemption per user per offer"} 
+                      className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600" 
+                      placeholder="Enter offer rules or conditions..."
+                    />
                   </div>
                 </div>
 
