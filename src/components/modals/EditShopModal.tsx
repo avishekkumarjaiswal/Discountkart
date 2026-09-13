@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { useCategories } from '../../hooks/useCategories';
 import { Input } from '../ui/Input';
 import { X, ImagePlus, Loader2, Store, Tag, Package, Plus, Trash2, Edit3, Check } from 'lucide-react';
+import { getOfferBadgeText } from '../../utils/discountEngine';
 
 interface EditShopModalProps {
   shop: any;
@@ -556,9 +557,9 @@ export function EditShopModal({ shop, onClose, onSave }: EditShopModalProps) {
                           {disc.active ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {disc.discountType === 'percentage' ? `${disc.discountValue}% OFF` : `₹${disc.discountValue} OFF`}
-                        {disc.minimumPurchase ? ` • Min purchase: ₹${disc.minimumPurchase}` : ''}
+                      <p className="text-xs font-semibold text-blue-700 mt-0.5">
+                        {getOfferBadgeText(disc)}
+                        {disc.minimumPurchase ? ` • Min spend: ₹${disc.minimumPurchase}` : ''}
                       </p>
                     </div>
 
